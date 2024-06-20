@@ -1,3 +1,5 @@
 *.bmp
 *.txt
+*.key
+*.pem
 /Keys
