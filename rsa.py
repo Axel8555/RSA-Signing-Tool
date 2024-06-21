@@ -36,7 +36,7 @@ def sign_file(file_path, private_key_path):
         signature = private_key.sign(
             hash_value,
             padding.PSS(
-                mgf=padding.MGF1(hashes.SHA3_256()), salt_length=padding.PSS.MAX_LENGTH
+                mgf=padding.MGF1(hashes.SHA3_256()), salt_length=0
             ),
             hashes.SHA3_256(),
         )
@@ -62,7 +62,7 @@ def verify_signature(file_path, public_key_path):
             signature,
             hash_value,
             padding.PSS(
-                mgf=padding.MGF1(hashes.SHA3_256()), salt_length=padding.PSS.MAX_LENGTH
+                mgf=padding.MGF1(hashes.SHA3_256()), salt_length=0
             ),
             hashes.SHA3_256(),
         )
