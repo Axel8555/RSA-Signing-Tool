@@ -199,7 +199,7 @@ def sign_verify_menu(parent_window, action):
     key_scrollbar = Scrollbar(frame, orient="horizontal", command=key_text.xview)
     key_text.configure(wrap="none", xscrollcommand=key_scrollbar.set)
     key_scrollbar.pack(fill="x")
-    tk.Button(frame, text="Select Key", command=lambda: select_file(key_text)).pack(
+    tk.Button(frame, text="Select Key", command=lambda: select_file(key_text,[("PEM files", "*.pem;*.key"), ("All files", "*.*")])).pack(
         anchor="e"
     )
 
@@ -230,8 +230,8 @@ def sign_verify_menu(parent_window, action):
     )
 
 
-def select_file(text_widget):
-    file_path = filedialog.askopenfilename()
+def select_file(text_widget, filetypes=[("All files", "*.*")]):
+    file_path = filedialog.askopenfilename(filetypes=filetypes)
     text_widget.delete("1.0", tk.END)
     text_widget.insert("1.0", file_path)
 
