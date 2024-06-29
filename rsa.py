@@ -8,6 +8,9 @@ from cryptography.hazmat.backends import default_backend
 import base64, os, subprocess
 
 
+# Global variables to store the last used file and mode of operation
+last_file_path = ""
+
 def load_private_key(file_path):
     with open(file_path, "rb") as key_file:
         private_key = serialization.load_pem_private_key(
@@ -25,6 +28,7 @@ def load_public_key(file_path):
 
 
 def sign_file(file_path, private_key_path):
+    global last_file_path
     if not verify_parameters(file_path, private_key_path):
         return
     try:
@@ -35,13 +39,11 @@ def sign_file(file_path, private_key_path):
         hash_value = digest.finalize()
         signature = private_key.sign(
             hash_value,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA3_256()), salt_length=0
-            ),
+            padding.PSS(mgf=padding.MGF1(hashes.SHA3_256()), salt_length=0),
             hashes.SHA3_256(),
         )
         encoded_signature = base64.b64encode(signature)
-        write_file(file_path, content + b"\n" + encoded_signature, "fRSA")
+        last_file_path = write_file(file_path, content + b"\n" + encoded_signature, "fRSA")
         messagebox.showinfo("Signature", "File signed successfully!")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to sign the file.\n{e}")
@@ -61,9 +63,7 @@ def verify_signature(file_path, public_key_path):
         public_key.verify(
             signature,
             hash_value,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA3_256()), salt_length=0
-            ),
+            padding.PSS(mgf=padding.MGF1(hashes.SHA3_256()), salt_length=0),
             hashes.SHA3_256(),
         )
         messagebox.showinfo("Verification", "The signature is valid :)")
@@ -71,13 +71,13 @@ def verify_signature(file_path, public_key_path):
         messagebox.showinfo("Verification", f"Signature verification failed :(\n{e}")
 
 
-def verify_parameters(filename, key):
+def verify_parameters(file_path, key):
     root = tk.Tk()
     root.withdraw()  # Hide the main Tkinter window
-    if not filename:
+    if not file_path:
         messagebox.showwarning("Warning", "Please select a file.")
         return False
-    if not os.path.exists(filename):
+    if not os.path.exists(file_path):
         messagebox.showwarning("Warning", "The file does not exist.")
         return False
     if not key:
@@ -115,23 +115,25 @@ def read_file(file_path):
 
 
 def write_file(file_path, data, sufix=None):
-    filename_base = file_path.rsplit(".", 1)[-2]
+    file_path_base = file_path.rsplit(".", 1)[-2]
     extension = file_path.rsplit(".", 1)[-1]
-    new_filename = (
-        f"{filename_base}{('_' + sufix) if sufix is not None else ''}.{extension}"
+    new_file_path = (
+        f"{file_path_base}{('_' + sufix) if sufix is not None else ''}.{extension}"
     )
     try:
-        with open(new_filename, "wb") as f:
+        with open(new_file_path, "wb") as f:
             f.write(data)
-        print(f"File saved as: {new_filename}")
+        print(f"File saved as: {new_file_path}")
         messagebox.showinfo(
             "File saved",
-            f"File saved as: {os.path.basename(new_filename)}",
+            f"File saved as: {os.path.basename(new_file_path)}",
         )
-        subprocess.run(["start", new_filename], shell=True)
+        subprocess.run(["start", new_file_path], shell=True)
+        return new_file_path
     except Exception as e:
         print(f"Error saving the file: {e}")
         messagebox.showwarning("Save error", f"Error saving the file. {e}")
+        return None
 
 
 def main_menu():
@@ -177,15 +179,17 @@ def sign_verify_menu(parent_window, action):
     frame = tk.Frame(action_window)
     frame.pack(padx=10, pady=10)
 
+
     # File path
     tk.Label(frame, text="File path:").pack(anchor="w")
-    filename_text = Text(frame, height=1, width=40)
-    filename_text.pack(fill="x", expand=True)
-    scrollbar = Scrollbar(frame, orient="horizontal", command=filename_text.xview)
-    filename_text.configure(wrap="none", xscrollcommand=scrollbar.set)
+    file_path_text = Text(frame, height=1, width=40)
+    file_path_text.pack(fill="x", expand=True)
+    file_path_text.insert(tk.END, last_file_path)
+    scrollbar = Scrollbar(frame, orient="horizontal", command=file_path_text.xview)
+    file_path_text.configure(wrap="none", xscrollcommand=scrollbar.set)
     scrollbar.pack(fill="x")
     tk.Button(
-        frame, text="Select File", command=lambda: select_file(filename_text)
+        frame, text="Select File", command=lambda: select_file(file_path_text)
     ).pack(anchor="e")
 
     # Key path
@@ -207,13 +211,13 @@ def sign_verify_menu(parent_window, action):
         button_text = "Sign File"
         button_color = "#ff7e38"
         command = lambda: sign_file(
-            filename_text.get("1.0", "end-1c"), key_text.get("1.0", "end-1c")
+            file_path_text.get("1.0", "end-1c"), key_text.get("1.0", "end-1c")
         )
     else:  # Verify
         button_text = "Verify File"
         button_color = "#38b9ff"
         command = lambda: verify_signature(
-            filename_text.get("1.0", "end-1c"), key_text.get("1.0", "end-1c")
+            file_path_text.get("1.0", "end-1c"), key_text.get("1.0", "end-1c")
         )
 
     tk.Button(
@@ -227,9 +231,9 @@ def sign_verify_menu(parent_window, action):
 
 
 def select_file(text_widget):
-    filename = filedialog.askopenfilename()
+    file_path = filedialog.askopenfilename()
     text_widget.delete("1.0", tk.END)
-    text_widget.insert("1.0", filename)
+    text_widget.insert("1.0", file_path)
 
 
 def close_window(child_window, parent_window):
