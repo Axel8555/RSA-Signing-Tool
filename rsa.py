@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
-import base64, os, subprocess
+import base64, os, webbrowser
 
 
 # Global variables to store the last used file and mode of operation
@@ -43,7 +43,9 @@ def sign_file(file_path, private_key_path):
             hashes.SHA3_256(),
         )
         encoded_signature = base64.b64encode(signature)
-        last_file_path = write_file(file_path, content + b"\n" + encoded_signature, "fRSA")
+        last_file_path = write_file(
+            file_path, content + b"\n" + encoded_signature, "fRSA"
+        )
         messagebox.showinfo("Signature", "File signed successfully!")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to sign the file.\n{e}")
@@ -103,6 +105,18 @@ def extract_content(content, header_size, footer_size):
         return None, None, None
 
 
+def open_file(file_path):
+    try:
+        # Tries to open the file with the default application
+        if os.name == "nt":  # Windows
+            os.startfile(file_path)
+        else:
+            # Unix based systems
+            webbrowser.open(file_path)
+    except Exception as e:
+        print(f"Error opening the file: {e}")
+
+
 def read_file(file_path):
     try:
         with open(file_path, "rb") as f:
@@ -114,12 +128,10 @@ def read_file(file_path):
         return None
 
 
-def write_file(file_path, data, sufix=None):
+def write_file(file_path, data, suffix=None, open_new_file=True):
     file_path_base = file_path.rsplit(".", 1)[-2]
     extension = file_path.rsplit(".", 1)[-1]
-    new_file_path = (
-        f"{file_path_base}{('_' + sufix) if sufix is not None else ''}.{extension}"
-    )
+    new_file_path = f"{file_path_base}{('_' + suffix) if suffix is not None and suffix != '' else ''}.{extension}"
     try:
         with open(new_file_path, "wb") as f:
             f.write(data)
@@ -128,7 +140,8 @@ def write_file(file_path, data, sufix=None):
             "File saved",
             f"File saved as: {os.path.basename(new_file_path)}",
         )
-        subprocess.run(["start", new_file_path], shell=True)
+        if open_new_file:
+            open_file(new_file_path)
         return new_file_path
     except Exception as e:
         print(f"Error saving the file: {e}")
@@ -173,12 +186,11 @@ def main_menu():
 def sign_verify_menu(parent_window, action):
     parent_window.withdraw()
     action_window = tk.Toplevel()
-    action_window.title(f"{action} File")
+    action_window.title(f"{action} file")
     action_window.geometry("400x300")
 
     frame = tk.Frame(action_window)
     frame.pack(padx=10, pady=10)
-
 
     # File path
     tk.Label(frame, text="File path:").pack(anchor="w")
@@ -199,9 +211,13 @@ def sign_verify_menu(parent_window, action):
     key_scrollbar = Scrollbar(frame, orient="horizontal", command=key_text.xview)
     key_text.configure(wrap="none", xscrollcommand=key_scrollbar.set)
     key_scrollbar.pack(fill="x")
-    tk.Button(frame, text="Select Key", command=lambda: select_file(key_text,[("PEM files", "*.pem;*.key"), ("All files", "*.*")])).pack(
-        anchor="e"
-    )
+    tk.Button(
+        frame,
+        text="Select Key",
+        command=lambda: select_file(
+            key_text, [("PEM files", "*.pem;*.key"), ("All files", "*.*")]
+        ),
+    ).pack(anchor="e")
 
     # Action buttons
     button_frame = tk.Frame(frame)
